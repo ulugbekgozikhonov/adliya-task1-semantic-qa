@@ -15,11 +15,13 @@ from app.text import normalize
 
 @lru_cache(maxsize=1)
 def get_model() -> SentenceTransformer:
-    return SentenceTransformer(settings.embed_model, device="cpu")
+    return SentenceTransformer(
+        settings.embed_model, device="cpu", local_files_only=settings.hf_offline
+    )
 
 
 def dimension() -> int:
-    return get_model().get_sentence_embedding_dimension()
+    return get_model().get_embedding_dimension()
 
 
 def embed(texts: list[str], batch_size: int = 32, show_progress: bool = False) -> np.ndarray:

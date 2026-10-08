@@ -4,13 +4,21 @@ Model og'ir (~2.2 GB), shuning uchun bir marta yuklanadi va qayta ishlatiladi.
 Matn har doim avval normalize() dan o'tadi: indekslashda ham, qidirishda ham.
 """
 
+import os
 from functools import lru_cache
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
-from app.text import normalize
+
+# huggingface_hub bu o'zgaruvchini IMPORT paytida o'qiydi, shuning uchun
+# sentence_transformers import qilinishidan OLDIN o'rnatilishi shart.
+if settings.hf_offline:
+    os.environ["HF_HUB_OFFLINE"] = "1"
+
+from sentence_transformers import SentenceTransformer  # noqa: E402
+
+from app.text import normalize  # noqa: E402
 
 
 @lru_cache(maxsize=1)

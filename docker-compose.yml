@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: task1-postgres
+    environment:
+      POSTGRES_USER: faq
+      POSTGRES_PASSWORD: faq
+      POSTGRES_DB: faq
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faq -d faq"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    container_name: task1-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  pg_data:
+  qdrant_data:

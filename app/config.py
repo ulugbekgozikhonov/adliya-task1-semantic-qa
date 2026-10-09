@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "questions"
     hf_offline: bool = False
+    search_threshold: float = 0.70
+    search_margin: float = 0.06
 
     model_config = SettingsConfigDict(env_file=".env")
 

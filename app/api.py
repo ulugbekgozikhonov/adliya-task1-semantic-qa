@@ -5,11 +5,11 @@ Ishlatish:  uvicorn app.api:app --reload
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from app.embedder import get_model
-from app.search import Status, search
+from app.search import Status, answer_text, search
 
 
 @asynccontextmanager
@@ -37,6 +37,11 @@ class AskResponse(BaseModel):
     matches: list[MatchOut]
 
 
+class AnswerOut(BaseModel):
+    answer_id: int
+    answer: str
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -49,3 +54,11 @@ def ask(req: AskRequest) -> AskResponse:
         status=result.status,
         matches=[MatchOut(**vars(m)) for m in result.matches],
     )
+
+
+@app.get("/answers/{answer_id}", response_model=AnswerOut)
+def get_answer(answer_id: int) -> AnswerOut:
+    text = answer_text(answer_id)
+    if text is None:
+        raise HTTPException(status_code=404, detail="Javob topilmadi")
+    return AnswerOut(answer_id=answer_id, answer=text)

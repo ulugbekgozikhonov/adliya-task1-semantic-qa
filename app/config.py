@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     hf_offline: bool = False
     search_threshold: float = 0.65
     search_margin: float = 0.06
+    bot_token: str = ""
+    api_url: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(env_file=".env")
 

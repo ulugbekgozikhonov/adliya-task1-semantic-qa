@@ -74,6 +74,9 @@ def _answer_texts(ids: list[int]) -> dict[int, str]:
     with Session(engine) as s:
         return {row.id: row.answer for row in s.execute(stmt)}
 
+def answer_text(answer_id: int) -> str | None:
+    return _answer_texts([answer_id]).get(answer_id)
+
 
 def search(query: str) -> SearchResult:
     _, cands = decide(

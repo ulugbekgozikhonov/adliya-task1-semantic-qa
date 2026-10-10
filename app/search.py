@@ -65,9 +65,9 @@ def decide(cands: list[Candidate], threshold: float, margin: float) -> tuple[Sta
     """B3: chegara va farq bo'yicha qaror."""
     if not cands or cands[0].score < threshold:
         return "not_found", []
-    close = [c for c in cands if cands[0].score - c.score < margin]
+    best = cands[0]
+    close = [best] + [c for c in cands[1:] if best.score - c.score < margin]
     return ("found" if len(close) == 1 else "ambiguous"), close
-
 
 def _answer_texts(ids: list[int]) -> dict[int, str]:
     stmt = select(Answer.id, Answer.answer).where(Answer.id.in_(ids), Answer.is_active)

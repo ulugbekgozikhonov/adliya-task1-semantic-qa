@@ -1,3 +1,13 @@
+x-app: &app
+  build: .
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://faq:faq@postgres:5432/faq
+    QDRANT_URL: http://qdrant:6333
+    API_URL: http://api:8000
+  volumes:
+    - ~/.cache/huggingface:/root/.cache/huggingface
+
 services:
   postgres:
     image: postgres:16
@@ -23,6 +33,41 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+
+  init:
+    <<: *app
+    container_name: task1-init
+    command: sh -c "python -m scripts.load_db && python -m scripts.index_qdrant"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  api:
+    <<: *app
+    container_name: task1-api
+    ports:
+      - "8000:8000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  bot:
+    <<: *app
+    container_name: task1-bot
+    command: python -m app.bot
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pg_data:

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import Answer, engine
-from app.embedder import embed_one
+from app.embedder import embed
 
 Status = Literal["found", "ambiguous", "not_found"]
 
@@ -42,26 +42,50 @@ def _client() -> QdrantClient:
     return QdrantClient(url=settings.qdrant_url)
 
 
-def retrieve(vector, limit: int = 3, exclude_ids: list[int] | None = None) -> list[Candidate]:
+def retrieve(
+    vector, limit: int = 3, exclude_ids: list[int] | None = None
+) -> list[Candidate]:
     """B1-B2: vektorga eng yaqin javoblar (har javobdan eng yaxshi bitta savol)."""
     query_filter = None
     if exclude_ids:
         query_filter = Filter(must_not=[HasIdCondition(has_id=exclude_ids)])
-    groups = _client().query_points_groups(
-        settings.qdrant_collection,
-        query=list(map(float, vector)),
-        group_by="answer_id",
-        limit=limit,
-        group_size=1,
-        query_filter=query_filter,
-    ).groups
+    groups = (
+        _client()
+        .query_points_groups(
+            settings.qdrant_collection,
+            query=list(map(float, vector)),
+            group_by="answer_id",
+            limit=limit,
+            group_size=1,
+            query_filter=query_filter,
+        )
+        .groups
+    )
     return [
         Candidate(int(g.id), g.hits[0].score, g.hits[0].payload["question"])
         for g in groups
     ]
 
 
-def decide(cands: list[Candidate], threshold: float, margin: float) -> tuple[Status, list[Candidate]]:
+def retrieve_robust(
+    query: str, limit: int = 3, exclude_ids: list[int] | None = None
+) -> list[Candidate]:
+    """Asl va kichik harfli matn bilan qidiradi, har javob uchun eng yaxshi ballni oladi.
+
+    Katta-kichik harf aralash yozilgan savollarga (CAPS, "iD-kArTa") chidamlilik uchun.
+    """
+    variants = [query] if query == query.lower() else [query, query.lower()]
+    best: dict[int, Candidate] = {}
+    for vector in embed(variants):
+        for c in retrieve(vector, limit=limit, exclude_ids=exclude_ids):
+            if c.answer_id not in best or c.score > best[c.answer_id].score:
+                best[c.answer_id] = c
+    return sorted(best.values(), key=lambda c: c.score, reverse=True)[:limit]
+
+
+def decide(
+    cands: list[Candidate], threshold: float, margin: float
+) -> tuple[Status, list[Candidate]]:
     """B3: chegara va farq bo'yicha qaror."""
     if not cands or cands[0].score < threshold:
         return "not_found", []
@@ -69,10 +93,12 @@ def decide(cands: list[Candidate], threshold: float, margin: float) -> tuple[Sta
     close = [best] + [c for c in cands[1:] if best.score - c.score < margin]
     return ("found" if len(close) == 1 else "ambiguous"), close
 
+
 def _answer_texts(ids: list[int]) -> dict[int, str]:
     stmt = select(Answer.id, Answer.answer).where(Answer.id.in_(ids), Answer.is_active)
     with Session(engine) as s:
         return {row.id: row.answer for row in s.execute(stmt)}
+
 
 def answer_text(answer_id: int) -> str | None:
     return _answer_texts([answer_id]).get(answer_id)
@@ -80,7 +106,7 @@ def answer_text(answer_id: int) -> str | None:
 
 def search(query: str) -> SearchResult:
     _, cands = decide(
-        retrieve(embed_one(query)), settings.search_threshold, settings.search_margin
+        retrieve_robust(query), settings.search_threshold, settings.search_margin
     )
     # B4: javob matnlari PostgreSQL'dan
     texts = _answer_texts([c.answer_id for c in cands]) if cands else {}

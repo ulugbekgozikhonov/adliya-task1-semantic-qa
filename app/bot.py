@@ -11,7 +11,12 @@ import httpx
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from app.config import settings
 
@@ -40,7 +45,9 @@ async def question(message: Message) -> None:
     try:
         resp = await api.post("/ask", json={"question": message.text})
         if resp.status_code == 422:
-            await message.answer("Savol juda qisqa yoki juda uzun. Iltimos, aniqroq yozing.")
+            await message.answer(
+                "Savol juda qisqa yoki juda uzun. Iltimos, aniqroq yozing."
+            )
             return
         resp.raise_for_status()
     except httpx.HTTPError:
@@ -54,11 +61,18 @@ async def question(message: Message) -> None:
     elif data["status"] == "ambiguous":
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text=m["matched_question"][:60], callback_data=f"ans:{m['answer_id']}")]
+                [
+                    InlineKeyboardButton(
+                        text=m["matched_question"][:60],
+                        callback_data=f"ans:{m['answer_id']}",
+                    )
+                ]
                 for m in data["matches"]
             ]
         )
-        await message.answer("Savolingizni aniqlashtiring, qaysi biri?", reply_markup=keyboard)
+        await message.answer(
+            "Savolingizni aniqlashtiring, qaysi biri?", reply_markup=keyboard
+        )
     else:
         await message.answer(NOT_FOUND)
 

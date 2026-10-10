@@ -16,9 +16,9 @@ from app.config import settings
 if settings.hf_offline:
     os.environ["HF_HUB_OFFLINE"] = "1"
 
-from sentence_transformers import SentenceTransformer  # noqa: E402
+from sentence_transformers import SentenceTransformer
 
-from app.text import normalize  # noqa: E402
+from app.text import normalize
 
 
 @lru_cache(maxsize=1)
@@ -32,7 +32,9 @@ def dimension() -> int:
     return get_model().get_embedding_dimension()
 
 
-def embed(texts: list[str], batch_size: int = 32, show_progress: bool = False) -> np.ndarray:
+def embed(
+    texts: list[str], batch_size: int = 32, show_progress: bool = False
+) -> np.ndarray:
     return get_model().encode(
         [normalize(t) for t in texts],
         batch_size=batch_size,
